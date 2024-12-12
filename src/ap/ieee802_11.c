@@ -1129,16 +1129,21 @@ static int sae_sm_step(struct hostapd_data *hapd, struct sta_info *sta,
 static void sae_pick_next_group(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	struct sae_data *sae = sta->sae;
-	int i, *groups = hapd->conf->sae_groups;
-	int default_groups[] = { 19, 0 };
+	struct hostapd_bss_config *conf = hapd->conf;
+	int i, *groups = conf->sae_groups;
+	int default_groups[] = { 19, 0, 0 };
 
 	if (sae->state != SAE_COMMITTED)
 		return;
 
 	wpa_printf(MSG_DEBUG, "SAE: Previously selected group: %d", sae->group);
 
-	if (!groups)
+	if (!groups) {
 		groups = default_groups;
+		if (wpa_key_mgmt_sae_ext_key(conf->wpa_key_mgmt))
+			default_groups[1] = 20;
+	}
+
 	for (i = 0; groups[i] > 0; i++) {
 		if (sae->group == groups[i])
 			break;
@@ -1203,12 +1208,16 @@ static int sae_status_success(struct hostapd_data *hapd, u16 status_code)
 
 static int sae_is_group_enabled(struct hostapd_data *hapd, int group)
 {
-	int *groups = hapd->conf->sae_groups;
-	int default_groups[] = { 19, 0 };
+	struct hostapd_bss_config *conf = hapd->conf;
+	int *groups = conf->sae_groups;
+	int default_groups[] = { 19, 0, 0 };
 	int i;
 
-	if (!groups)
+	if (!groups) {
 		groups = default_groups;
+		if (wpa_key_mgmt_sae_ext_key(conf->wpa_key_mgmt))
+			default_groups[1] = 20;
+	}
 
 	for (i = 0; groups[i] > 0; i++) {
 		if (groups[i] == group)
@@ -1257,14 +1266,18 @@ static void handle_auth_sae(struct hostapd_data *hapd, struct sta_info *sta,
 {
 	int resp = WLAN_STATUS_SUCCESS;
 	struct wpabuf *data = NULL;
-	int *groups = hapd->conf->sae_groups;
-	int default_groups[] = { 19, 0 };
+	struct hostapd_bss_config *conf = hapd->conf;
+	int *groups = conf->sae_groups;
+	int default_groups[] = { 19, 0, 0 };
 	const u8 *pos, *end;
 	int sta_removed = 0;
 	bool success_status;
 
-	if (!groups)
+	if (!groups) {
 		groups = default_groups;
+		if (wpa_key_mgmt_sae_ext_key(conf->wpa_key_mgmt))
+			default_groups[1] = 20;
+	}
 
 #ifdef CONFIG_TESTING_OPTIONS
 	if (hapd->conf->sae_reflection_attack && auth_transaction == 1) {
